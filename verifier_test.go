@@ -102,8 +102,8 @@ func TestVerifier_ParseAndVerify(t *testing.T) {
 				io.WriteString(w, defaultJWKS)
 			},
 			rules: []ClaimRule{
-				NewAudienceRule("foo"),
-				NewCustomClaimExactMatchRule("sub", "bar"),
+				WithAudienceRule("foo"),
+				WithCustomClaimExactMatchRule("sub", "bar"),
 			},
 			wantErr: "claim 'aud' is invalid: expected 'foo' but got 'Tashuan'; claim 'sub' is invalid: expected 'bar' but got 'Weidong'",
 		},
