@@ -18,28 +18,28 @@ type ClaimRule struct {
 	Rule Rule
 }
 
-// NewAudienceRule will verify that the value of the 'aud' claim equals the
+// WithAudienceRule will verify that the value of the 'aud' claim equals the
 // given value.
-func NewAudienceRule(wantAud string) ClaimRule {
-	return NewCustomClaimExactMatchRule("aud", wantAud)
+func WithAudienceRule(wantAud string) ClaimRule {
+	return WithCustomClaimExactMatchRule("aud", wantAud)
 }
 
-// NewClientIDRule will verify that the value of the 'cid' claim equals the
+// WithClientIDRule will verify that the value of the 'cid' claim equals the
 // given value.
-func NewClientIDRule(wantCid string) ClaimRule {
-	return NewCustomClaimExactMatchRule("cid", wantCid)
+func WithClientIDRule(wantCid string) ClaimRule {
+	return WithCustomClaimExactMatchRule("cid", wantCid)
 }
 
-// NewIssuerRule will verify that the value of the 'iss' claim equals the
+// WithIssuerRule will verify that the value of the 'iss' claim equals the
 // issuer that the Verifier was initialized with.
-func (j Verifier) NewIssuerRule() ClaimRule {
-	return NewCustomClaimExactMatchRule("iss", j.issuer)
+func (j Verifier) WithIssuerRule() ClaimRule {
+	return WithCustomClaimExactMatchRule("iss", j.issuer)
 }
 
-// NewExpirationRule returns a ClaimRule which will check if the value
+// WithExpirationRule returns a ClaimRule which will check if the value
 // of the 'exp' claim is a timestamp is more than leeway seconds old, and if
 // so it will return an error.
-func (j Verifier) NewExpirationRule(leeway int) ClaimRule {
+func (j Verifier) WithExpirationRule(leeway int) ClaimRule {
 	return ClaimRule{
 		Key: "exp",
 		Rule: func(value any) error {
@@ -57,10 +57,10 @@ func (j Verifier) NewExpirationRule(leeway int) ClaimRule {
 	}
 }
 
-// NewIssuedAtRule returns a ClaimRule which will check if the value
+// WithIssuedAtRule returns a ClaimRule which will check if the value
 // of the 'iss' claim is a timestamp is more than leeway seconds in the future,
 // and if so it will return an error.
-func (j Verifier) NewIssuedAtRule(leeway int) ClaimRule {
+func (j Verifier) WithIssuedAtRule(leeway int) ClaimRule {
 	return ClaimRule{
 		Key: "iss",
 		Rule: func(value any) error {
@@ -78,9 +78,9 @@ func (j Verifier) NewIssuedAtRule(leeway int) ClaimRule {
 	}
 }
 
-// NewCustomClaimExactMatchRule will check that the value of the given
+// WithCustomClaimExactMatchRule will check that the value of the given
 // claim equals the given value exactly.
-func NewCustomClaimExactMatchRule[T comparable](claim string, wantValue T) ClaimRule {
+func WithCustomClaimExactMatchRule[T comparable](claim string, wantValue T) ClaimRule {
 	return ClaimRule{
 		Key: claim,
 		Rule: func(value any) error {
@@ -98,24 +98,29 @@ func NewCustomClaimExactMatchRule[T comparable](claim string, wantValue T) Claim
 	}
 }
 
-// NewCustomClaimContainsRule will check that wantValue is in the claim,
+// WithCustomClaimContainsRule will check that wantValue is in the claim,
 // whose value should be an array.
-func NewCustomClaimContainsRule[T comparable](claim string, wantValue T) ClaimRule {
+func WithCustomClaimContainsRule[T comparable](claim string, wantValue T) ClaimRule {
 	return ClaimRule{
 		Key: claim,
 		Rule: func(value any) error {
-			claims, ok := value.([]T)
+			raw, ok := value.([]any)
 			if !ok {
-				return fmt.Errorf("expected a %T but got a %T", claims, value)
+				return fmt.Errorf("expected an array but got a %T", value)
 			}
 
-			for _, claim := range claims {
+			for _, v := range raw {
+				claim, ok := v.(T)
+				if !ok {
+					return fmt.Errorf("value of array element is not a %T", claim)
+				}
+
 				if claim == wantValue {
 					return nil
 				}
 			}
 
-			return fmt.Errorf("value '%s' not present in claim", claim)
+			return fmt.Errorf("value '%v' not present in claim", wantValue)
 		},
 	}
 }
