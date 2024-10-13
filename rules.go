@@ -7,8 +7,15 @@ import (
 	"time"
 )
 
-// Rule receives the value of a claim from a parse JWT and returns a
-// non-nil error if the value is not valid.
+// Rule receives the value of a claim from a parse JWT and returns a non-nil
+// error if the value is not valid.
+//
+// Note that during ParseAndVerify() the claims are unmarshalled as a
+// map[string]any, so the value that is passed into the rule will follow the
+// same rules. For instance, if the value of the claim to be validated is a
+// string, then value will be a string. If the value of the claim is an array
+// of strings, then value will be an []any. If the value of the claim is
+// another object, then value will be a map[string]any.
 type Rule func(value any) error
 
 // ClaimRule contains the JWT claim key and a function to verify the value
