@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 )
 
@@ -105,9 +106,9 @@ func WithCustomClaimExactMatchRule[T comparable](claim string, wantValue T) Clai
 	}
 }
 
-// WithCustomClaimContainsRule will check that wantValue is in the claim,
-// whose value should be an array.
-func WithCustomClaimContainsRule[T comparable](claim string, wantValue T) ClaimRule {
+// WithCustomClaimContainsRule will check that all of the values in wantValue
+// are presen in the claim, whose value should be an array of the same type.
+func WithCustomClaimContainsRule[T comparable](claim string, wantValues []T) ClaimRule {
 	return ClaimRule{
 		Key: claim,
 		Rule: func(value any) error {
@@ -116,18 +117,35 @@ func WithCustomClaimContainsRule[T comparable](claim string, wantValue T) ClaimR
 				return fmt.Errorf("expected an array but got a %T", value)
 			}
 
+			gotValuesSet := make(map[T]struct{})
+
 			for _, v := range raw {
 				claim, ok := v.(T)
 				if !ok {
 					return fmt.Errorf("value of array element is not a %T", claim)
 				}
 
-				if claim == wantValue {
-					return nil
+				gotValuesSet[claim] = struct{}{}
+			}
+
+			missingValues := make([]T, 0)
+			for _, wantValue := range wantValues {
+				if _, ok := gotValuesSet[wantValue]; !ok {
+					missingValues = append(missingValues, wantValue)
 				}
 			}
 
-			return fmt.Errorf("value '%v' not present in claim", wantValue)
+			if len(missingValues) == 0 {
+				return nil
+			}
+
+			var builder strings.Builder
+			builder.WriteString(fmt.Sprintf("'%v'", missingValues[0]))
+			for _, value := range missingValues[1:] {
+				builder.WriteString(fmt.Sprintf(", '%v'", value))
+			}
+
+			return fmt.Errorf("missing value(s): %s", builder.String())
 		},
 	}
 }
