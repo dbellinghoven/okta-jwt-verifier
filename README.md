@@ -72,7 +72,7 @@ func main() {
         "${JWT}",
         verifier.WithAudienceRule("my-audience"),
         v.WithIssuerRule(),
-        v.WithExpirationRule(100*time.Second),
+        v.WithExpirationRule(100),
     )
     // ...
 }
