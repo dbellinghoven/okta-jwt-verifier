@@ -55,7 +55,7 @@ func (j Verifier) WithExpirationRule(leeway int) ClaimRule {
 				return err
 			}
 
-			if time.Now().UTC().Sub(ts) > time.Second*time.Duration(leeway) {
+			if j.now().UTC().Sub(ts) > time.Second*time.Duration(leeway) {
 				return errors.New("token is expired")
 			}
 
@@ -65,18 +65,18 @@ func (j Verifier) WithExpirationRule(leeway int) ClaimRule {
 }
 
 // WithIssuedAtRule returns a ClaimRule which will check if the value
-// of the 'iss' claim is a timestamp is more than leeway seconds in the future,
+// of the 'iat' claim is a timestamp is more than leeway seconds in the future,
 // and if so it will return an error.
 func (j Verifier) WithIssuedAtRule(leeway int) ClaimRule {
 	return ClaimRule{
-		Key: "iss",
+		Key: "iat",
 		Rule: func(value any) error {
 			ts, err := j.parseTimestamp(value)
 			if err != nil {
 				return err
 			}
 
-			if time.Now().UTC().Sub(ts) < time.Second*time.Duration(leeway) {
+			if ts.Sub(j.now().UTC()) > time.Second*time.Duration(leeway) {
 				return errors.New("token was issued in the future")
 			}
 
