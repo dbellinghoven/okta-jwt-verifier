@@ -166,10 +166,10 @@ func TestWithCustomClaimExactMatchRule(t *testing.T) {
 
 func TestWithCustomClaimContainsRule(t *testing.T) {
 	cases := map[string]struct {
-		claim     string
-		claims    map[string]any
-		wantValue string
-		wantErr   string
+		claim      string
+		claims     map[string]any
+		wantValues []string
+		wantErr    string
 	}{
 		"wrong type": {
 			claim: "foo",
@@ -181,23 +181,23 @@ func TestWithCustomClaimContainsRule(t *testing.T) {
 		"fails validation": {
 			claim: "foo",
 			claims: map[string]any{
-				"foo": []any{"bar", "hello"},
+				"foo": []any{"bar", "hello", "world"},
 			},
-			wantValue: "world",
-			wantErr:   "value 'world' not present in claim",
+			wantValues: []string{"world", "lmao", "haha"},
+			wantErr:    "missing value(s): 'lmao', 'haha'",
 		},
 		"passes validation": {
 			claim: "foo",
 			claims: map[string]any{
-				"foo": []any{"bar", "hello"},
+				"foo": []any{"bar", "hello", "world"},
 			},
-			wantValue: "bar",
+			wantValues: []string{"world", "bar"},
 		},
 	}
 
 	for name, tt := range cases {
 		t.Run(name, func(t *testing.T) {
-			rule := WithCustomClaimContainsRule(tt.claim, tt.wantValue)
+			rule := WithCustomClaimContainsRule(tt.claim, tt.wantValues)
 			require.Equal(t, rule.Key, tt.claim)
 
 			err := rule.Rule(tt.claims[rule.Key])
