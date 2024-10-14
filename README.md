@@ -32,7 +32,22 @@ and follows idiomatic conventions for a smooth developer experience.
 
 ### All-at-once claim validation
 
-Unlike the official library, which validates claims one at a time, this library validates all claims at once according to the provided rules and gives comprehensive feedback on any issues in a single pass.
+Unlike the official library, which validates claims one at a time, this library
+validates all claims at once according to the provided rules and gives
+comprehensive feedback on any issues in a single pass.
+
+## Compatibilty
+
+The official Okta JWT verifier library has to core functions:
+`VerifyAccessToken()` and `VerifyIdToken()`. These basically work the same way,
+where they parse the JWT and a set of claims according to some built-in rules.
+By contrast, the verifier in this library has just one method:
+`ParseAndVerify()`. By default, it **only parses the token**, and will **only
+validate the claims according to the claim validation rules that are passed
+into it**. This means that the claims that you wish to validate for a JWT must
+be explicitly provided, but it also means that it makes no assumptions about
+which claims you want to verify and gives you the power to customize your claim
+validation logic.
 
 ## Examples
 
