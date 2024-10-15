@@ -26,6 +26,12 @@ type ClaimRule struct {
 	Rule Rule
 }
 
+// WithIssuerRule will verify that the value of the 'iss' claim equals the
+// given value.
+func WithIssuerRule(wantIss string) ClaimRule {
+	return WithCustomClaimExactMatchRule("iss", wantIss)
+}
+
 // WithAudienceRule will verify that the value of the 'aud' claim equals the
 // given value.
 func WithAudienceRule(wantAud string) ClaimRule {
@@ -38,52 +44,64 @@ func WithClientIDRule(wantCid string) ClaimRule {
 	return WithCustomClaimExactMatchRule("cid", wantCid)
 }
 
+// WithExpirationRule returns a ClaimRule which will check if the value
+// of the 'exp' claim is a timestamp is more than leeway seconds old, and if
+// so it will return an error.
+//
+// This should only be called if the [WithJSONNumber] is not used with
+// [Verifier.ParseAndVerify].
+func WithExpirationRule(leeway int) ClaimRule {
+	return withTimestampRule("exp", leeway, false, time.Since, "token is expired")
+}
+
+// WithExpirationRuleJSONNumber returns a ClaimRule which will check if the
+// value of the 'exp' claim is a timestamp is more than leeway seconds old, and
+// if so it will return an error.
+//
+// This should only be called if the [WithJSONNumber] is used with
+// [Verifier.ParseAndVerify].
+func WithExpirationRuleJSONNumber(leeway int) ClaimRule {
+	return withTimestampRule("exp", leeway, true, time.Since, "token is expired")
+}
+
+// WithIssuedAtRule returns a ClaimRule which will check if the value
+// of the 'iat' claim is a timestamp is more than leeway seconds in the future,
+// and if so it will return an error.
+//
+// This should only be called if the [WithJSONNumber] is not used with
+// [Verifier.ParseAndVerify].
+func WithIssuedAtRule(leeway int) ClaimRule {
+	return withTimestampRule("iat", leeway, false, time.Since, "token was issued in the future")
+}
+
+// WithIssuedAtRuleJSONNumber returns a ClaimRule which will check if the value
+// of the 'iat' claim is a timestamp is more than leeway seconds in the future,
+// and if so it will return an error.
+//
+// This should only be called if the [WithJSONNumber] is used with
+// [Verifier.ParseAndVerify].
+func WithIssuedAtRuleJSONNumber(leeway int) ClaimRule {
+	return withTimestampRule("iat", leeway, true, time.Since, "token was issued in the future")
+}
+
 // WithIssuerRule will verify that the value of the 'iss' claim equals the
 // issuer that the Verifier was initialized with.
 func (j Verifier) WithIssuerRule() ClaimRule {
-	return WithCustomClaimExactMatchRule("iss", j.issuer)
+	return WithIssuerRule(j.issuer)
 }
 
 // WithExpirationRule returns a ClaimRule which will check if the value
 // of the 'exp' claim is a timestamp is more than leeway seconds old, and if
 // so it will return an error.
 func (j Verifier) WithExpirationRule(leeway int) ClaimRule {
-	return ClaimRule{
-		Key: "exp",
-		Rule: func(value any) error {
-			ts, err := j.parseTimestamp(value)
-			if err != nil {
-				return err
-			}
-
-			if j.now().UTC().Sub(ts) > time.Second*time.Duration(leeway) {
-				return errors.New("token is expired")
-			}
-
-			return nil
-		},
-	}
+	return withTimestampRule("exp", leeway, j.useJSONNumber, time.Since, "token is expired")
 }
 
 // WithIssuedAtRule returns a ClaimRule which will check if the value
 // of the 'iat' claim is a timestamp is more than leeway seconds in the future,
 // and if so it will return an error.
 func (j Verifier) WithIssuedAtRule(leeway int) ClaimRule {
-	return ClaimRule{
-		Key: "iat",
-		Rule: func(value any) error {
-			ts, err := j.parseTimestamp(value)
-			if err != nil {
-				return err
-			}
-
-			if ts.Sub(j.now().UTC()) > time.Second*time.Duration(leeway) {
-				return errors.New("token was issued in the future")
-			}
-
-			return nil
-		},
-	}
+	return withTimestampRule("iat", leeway, j.useJSONNumber, time.Until, "token was issued in the future")
 }
 
 // WithCustomClaimExactMatchRule will check that the value of the given
@@ -150,8 +168,32 @@ func WithCustomClaimContainsRule[T comparable](claim string, wantValues []T) Cla
 	}
 }
 
-func (j Verifier) parseTimestamp(value any) (time.Time, error) {
-	if j.useJSONNumber {
+func withTimestampRule(
+	claim string,
+	leeway int,
+	useJSONNumber bool,
+	comparer func(time.Time) time.Duration,
+	errMsg string,
+) ClaimRule {
+	return ClaimRule{
+		Key: claim,
+		Rule: func(value any) error {
+			ts, err := parseTimestamp(value, useJSONNumber)
+			if err != nil {
+				return err
+			}
+
+			if comparer(ts) > time.Second*time.Duration(leeway) {
+				return errors.New(errMsg)
+			}
+
+			return nil
+		},
+	}
+}
+
+func parseTimestamp(value any, useJSONNumber bool) (time.Time, error) {
+	if useJSONNumber {
 		exp, ok := value.(json.Number)
 		if !ok {
 			return time.Time{}, fmt.Errorf("expected a %T but got a %T", exp, value)
